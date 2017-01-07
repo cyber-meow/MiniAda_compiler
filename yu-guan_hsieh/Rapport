@@ -1,0 +1,47 @@
+
+
+** PartieI du projet de compilation - parser et typeur 28.11.2016 **
+
+
+---------------------------------------------------------------------------
+
+====
+
+1. Le typeur se contente pour l'instant de vérifier seulement la correction
+   du typage, une version plus complète sera abordée après
+
+2. On peut utiliser "all" pour déreférencer un pointeur (type accès)
+
+3. J'ai fait le choix de ne pas accepter "(new <record type>).<field>"
+
+4. Il semble que ce n'est pas précisé dans le sujet.
+   - Quand on déclare une suite de variables, "<a1>, ..., <an> := <e>;", 
+     il ne faut pas que l'identificatuer ai (1 <= i <= n) apparaisse dans 
+     l'expression e
+   - La même contrainte se trouve pour la déclaration d'un boucle for
+     "for <ident> in (reverse) <e1> .. <e2> ..."
+   Dans le deux cas, on renvoie l'erreur
+    "object _ cannot be used before end of its declaration"
+
+5. On ne signale pas d'avertissement quand il y a des codes qui ne peuvent
+   pas être atteintes (i.e. après return)
+
+
+---------------------------------------------------------------------------
+
+====
+
+Enfin, quelques précisions pour la réalisation du typeur
+
+1. un type ty_g pour stocker la nature d'un identificateur
+
+2. un type ty pour stocker le type d'un varaiable
+
+3. le niveau de chaque record est enregistré, pour pouvoir les identifier
+
+4. on indique de plus si un variable est passé par référence dans la fonction
+
+5. on garde une trace sur les types déclarés mais no définis (env.ndef_types)
+
+6. un fichier typing_error.ml pour gérér les messages d'erreur
+
