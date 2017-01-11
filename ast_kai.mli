@@ -22,6 +22,7 @@ type expr_kai =
   | KEacc of access_kai
   | KEaddr of access_kai
   | KEbinop of binop * expr_kai * expr_kai
+  | KErecbinop of binop * expr_kai * expr_kai * record_prod
   | KEunop of unop * expr_kai
   | KEnew of record_prod
   | KEcall of int * expr_kai list

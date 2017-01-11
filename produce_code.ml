@@ -10,14 +10,123 @@ open Ast_kai
 let pushn n = subq (imm n) (reg rsp) 
 let popn n = addq (imm n) (reg rsp)
 
+let ifelse_counter = let i = ref (-1) in fun() -> incr i; !i
+let endif_counter = let i = ref (-1) in fun() -> incr i; !i
+let cmprec_counter = let i = ref (-1) in fun() -> incr i; !i
+
+let labname lab num = lab ^ (string_of_int num)
+
+
 (* comment une constante est représenté dans la mémoire *)
+
 let constant_val = function
   | Cint a -> a
   | Cchar c -> int_of_char c
   | Cbool b when b -> 1
   | _ -> 0
 
-let funname fid = "fun" ^ (string_of_int fid)
+
+(* on calcule e1 binop e2, e1 dans %rdi et e2 dans %rsi, le 
+  résultat est mis dans %rdi *)
+
+let binopcode = function
+
+  | Bplus -> addq (reg rsi) (reg rdi)
+  | Bminus -> subq (reg rsi) (reg rdi)
+  | Bmul -> imulq (reg rsi) (reg rdi)
+  | Bdiv -> 
+      movq (reg rdi) (reg rax) ++ cqto ++ 
+      idivq (reg rsi) ++ movq (reg rax) (reg rdi)
+  | Brem ->
+      movq (reg rdi) (reg rax) ++ cqto ++ 
+      idivq (reg rsi) ++ movq (reg rdx) (reg rdi)
+  | Beq ->
+      cmpq (reg rsi) (reg rdi) ++
+      sete (reg dil) ++
+      movzbq (reg dil) rdi
+  | Bneq ->
+      cmpq (reg rsi) (reg rdi) ++
+      setne (reg dil) ++
+      movzbq (reg dil) rdi
+  | _ -> failwith "no impl"
+
+
+
+(* La fonction qui, étant donné la composition des champs d'un type 
+   enregistrement, construit une instance fraîche de ce type et
+   empiler l'addresse de cette dernière sur la pile *)
+
+let rec newrecord rp = 
+
+  let addnewchamp (ofs, leftcode) typroc =
+    let code = match typroc with
+      | TPrecord rp ->
+          newrecord rp ++ 
+          popq rdx ++
+          movq (ind rsp) (reg rcx) ++ 
+          movq (reg rdx) (ind ~ofs rcx)
+      | _ -> nop 
+    in ofs + 8, leftcode ++ code
+  in
+  let frame_size, rpcode = List.fold_left addnewchamp (0, nop) rp in
+  
+  movq (imm frame_size) (reg rdi) ++
+  call "malloc" ++
+  pushq (reg rax) ++ rpcode
+
+  
+(* teste si deux enregistrements sont égaux, et fait andq res %rdi,
+   les addresses des deux enregistrements sont sur le sommet de la pile, 
+   on dépile à la fin *)
+
+let rec cmprecord rp = 
+
+  let cmpid = cmprec_counter() in
+  let cmpchamp (ofs, leftcode) typroc =
+    let precode = 
+      testq (reg rdi) (reg rdi) ++
+      jz (labname "endcmprec" cmpid) ++
+      movq (ind rsp) (reg rdx) ++
+      movq (ind ~ofs:8 rsp) (reg rcx) in
+    let code = match typroc with
+      | TPvar ->
+          movq (ind ~ofs rdx) (reg rdx) ++
+          cmpq (reg rdx) (ind ~ofs rcx) ++
+          sete (reg dil) ++
+          movzbq (reg dil) rdi
+      | TPrecord rp ->
+          pushq (ind ~ofs rcx) ++
+          pushq (ind ~ofs rdx) ++
+          cmprecord rp in
+    ofs + 8, leftcode ++ precode ++ code
+  in
+  let _, rpcode = List.fold_left cmpchamp (0, nop) rp in
+  rpcode ++ label (labname "endcmprec" cmpid) ++ popn 16
+
+
+(* la fonction pour l'affectation rec1 := rec2, les addresses de rec1
+   et rec2 sont sur le sommet de la pile (rec1 puis rec2), et on
+   dépile à la fin *)
+
+let rec copyrecord rp =
+
+  let copychamp (ofs, leftcode) typroc =
+    let precode = 
+      movq (ind rsp) (reg rdi) ++
+      movq (ind ~ofs:8 rsp) (reg rsi) in
+    let code = match typroc with  
+      | TPvar -> 
+          movq (ind ~ofs rdi) (reg rdx) ++
+          movq (reg rdx) (ind ~ofs rsi)
+      | TPrecord rp ->
+          pushq (ind ~ofs rsi) ++
+          pushq (ind ~ofs rdi) ++
+          copyrecord rp in
+    ofs + 8, leftcode ++ precode ++ code
+  in
+  let _, rpcode = List.fold_left copychamp (0, nop) rp in
+  rpcode ++ popn 16
+
 
 
 (* on calcule la valeur de l'expression et le résultat est mis dans
@@ -38,6 +147,23 @@ let rec compile_expr = function
           movq (ind ~ofs:x.offset rsi) (reg rdi) ++
           if x.by_ref then movq (ind rdi) (reg rdi) else nop end
 
+  | KEbinop (o, e1, e2) ->
+      compile_expr e2 ++
+      pushq (reg rdi) ++
+      compile_expr e1 ++
+      popq rsi ++ binopcode o
+
+  | KErecbinop (o, e1, e2, rp) ->
+      compile_expr e1 ++
+      pushq (reg rdi) ++
+      compile_expr e2 ++
+      pushq (reg rdi) ++
+      movq (imm 1) (reg rdi) ++
+      cmprecord rp ++ begin match o with
+        | Beq -> nop
+        | Bneq -> notq (reg rdi) ++ andq (imm 1) (reg rdi)
+        | _ -> assert false end
+
   | KEnew rp ->
       newrecord rp ++ popq rdi
 
@@ -45,34 +171,12 @@ let rec compile_expr = function
       let compile_arg e argcode =
         argcode ++ (compile_expr e) ++ pushq (reg rdi) in
       List.fold_right compile_arg el nop ++
-      call (funname fid) ++
+      call (labname "fun" fid) ++
       popn (8 * (List.length el)) ++
       movq (reg rax) (reg rdi)
   
   | _ -> failwith "no implementation error"
 
-(* La fonction qui, étant donné la composition des champs d'un type 
-   enregistrement, construit une instance fraîche de ce type et
-   empiler l'addresse de cette dernière sur la pile *)
-
-and newrecord rp = 
-
-  let addnewchamp (ofs, leftcode) typroc =
-    let code = match typroc with
-      | TPrecord rp ->
-          newrecord rp ++ 
-          popq rdx ++
-          movq (ind rsp) (reg rcx) ++ 
-          movq (reg rdx) (ind ~ofs rcx)
-      | _ -> nop 
-    in ofs + 8, leftcode ++ code
-  in
-  let frame_size, rpcode = List.fold_left addnewchamp (0, nop) rp in
-
-  movq (imm frame_size) (reg rdi) ++
-  call "malloc" ++
-  pushq (reg rax) ++
-  rpcode
 
 
 (* compiler une instruction, son code est ajouté après codeins *)
@@ -109,7 +213,7 @@ let rec compile_inst retcode codeins = function
         argcode ++ (compile_expr e) ++ pushq (reg rdi) in
       codeins ++
       List.fold_right compile_arg el nop ++
-      call (funname fid) ++
+      call (labname "fun" fid) ++
       popn (8 * (List.length el))
   
   | KIput e -> 
@@ -127,30 +231,27 @@ let rec compile_inst retcode codeins = function
   | KIbloc i_l -> 
       codeins ++ List.fold_left (compile_inst retcode) codeins i_l
   
+  | KIif (ci_l, elbloc) ->
+      let ifid = endif_counter() in
+      let ifelsecode (cond, inst) elsecode =
+        let ifelseid = ifelse_counter() in
+        compile_expr cond ++
+        testq (reg rdi) (reg rdi) ++
+        jz (labname "else" ifelseid) ++
+        (* ça sert juste pour la lisibilité *)
+        label (labname "if" ifelseid) ++
+        compile_inst retcode nop inst ++
+        jmp (labname "endif" ifid) ++
+        label (labname "else" ifelseid) ++
+        elsecode
+      in
+      let elsecode = compile_inst retcode nop elbloc in
+      codeins ++ 
+      List.fold_right ifelsecode ci_l elsecode ++
+      label (labname "endif" ifid)
+
   | _ -> failwith "no imple err"
 
-(* la fonction pour l'affectation rec1 := rec2, les addresses de rec1
-   et rec2 sont sur le sommet de la pile (rec1 puis rec2), et on
-   dépile à la fin *)
-
-and copyrecord rp =
-
-  let copychamp (ofs, leftcode) typroc =
-    let precode = 
-      movq (ind rsp) (reg rdi) ++
-      movq (ind ~ofs:8 rsp) (reg rsi) in
-    let code = match typroc with  
-      | TPvar -> 
-          movq (ind ~ofs rdi) (reg rdx) ++
-          movq (reg rdx) (ind ~ofs rsi)
-      | TPrecord rp ->
-          pushq (ind ~ofs rsi) ++
-          pushq (ind ~ofs rdi) ++
-          copyrecord rp in
-    ofs + 8, leftcode ++ precode ++ code
-  in
-  let _, rpcode = List.fold_left copychamp (0, nop) rp in
-  rpcode ++ popn 16
 
 
 (* compiler une déclaration de fonction/procédure (avec des étiquettes) *)
@@ -163,7 +264,7 @@ let compile_fun codefun f =
     movq (reg rbp) (ind ~ofs:flvlofs rbx) ++ popq rbp in
   let body_code = compile_inst ret_code nop f.body in
   let code = 
-    label (funname f.fid) ++
+    label (labname "fun" f.fid) ++
     pushq (reg rbp) ++
     pushq (ind ~ofs:flvlofs rbx) ++
     movq (reg rsp) (reg rbp) ++
@@ -172,6 +273,7 @@ let compile_fun codefun f =
     body_code ++
     if f.ret then nop else ret_code ++ ret
   in codefun ++ code
+
 
 
 (* Les codes pour les deux fonctions put et newline *)

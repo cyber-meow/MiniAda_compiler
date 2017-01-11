@@ -153,7 +153,11 @@ let rec expr_type env = function
         | Beq | Bneq ->
             must_be_the_same e2.e_loc e1_ty e2_ty ; 
             Tbool 
-      in Min, ty, KEbinop (op, e1_kai, e2_kai)
+      in 
+      let e_kai = match e1_ty with
+        | Trecord (_, _, (_, rp)) -> KErecbinop (op, e1_kai, e2_kai, rp)
+        | _ -> KEbinop (op, e1_kai, e2_kai)
+      in Min, ty, e_kai
 
   | Eunop (op, e) ->
       let _, e_ty, e_kai = expr_type env e.e_tree in

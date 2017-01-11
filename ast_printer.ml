@@ -41,6 +41,9 @@ let rec print_expr fmt = function
   | KEbinop (o, e1, e2) -> 
       fprintf fmt "@[KEbinop (%a, %a, %a)@]" 
         print_binop o print_expr e1 print_expr e2
+  | KErecbinop (o, e1, e2, rp) -> 
+      fprintf fmt "@[KErecbinop (%a, %a, %a, %a)@]" 
+        print_binop o print_expr e1 print_expr e2 print_rp rp
   | KEunop (o, e) -> 
       fprintf fmt "@[KEunop (%a, %a)@]" print_unop o print_expr e
   | KEnew rp -> fprintf fmt "(@[KEnew %a@])" print_rp rp
