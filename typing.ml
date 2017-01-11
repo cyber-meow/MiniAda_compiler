@@ -230,12 +230,17 @@ let update env idn id_tg ndef_types =
     else Imap.remove id env.ndef_types end
   in
   let record_names', frame_size', offset', by_ref = match id_tg with
-    | TGvariable (fun_par, (mode, _)) -> 
-        let offset', by_ref = match fun_par, mode with
-          | true, Min_out -> env.frame_size, true
-          | true, _ -> env.frame_size, false
-          | _ -> -env.frame_size-8, false in
-        env.record_names, env.frame_size + 8, offset', by_ref 
+    | TGvariable (fun_par, (mode, ty)) ->
+        let fs = env.frame_size in
+        let fs', offset', by_ref = match fun_par, mode, ty with
+          (* pour un enregistrement, on stocke tjs la même chose *)
+          | true, Min_out, Trecord _ -> fs + 8, fs, false
+          | true, Min_out, _ -> fs + 8, fs, true
+          | true, _, _ -> fs + 8, fs, false
+          (* il faut aussi stocker la valeur limite *)
+          | _, Miter, _ -> fs + 16, -fs - 8, false
+          | _ -> fs + 8, -fs - 8, false in
+        env.record_names, fs', offset', by_ref 
     | TGrecord (dep, r_id, reco) ->
         DImap.add (dep, r_id) reco env.record_names, env.frame_size, 0, false
     | _ -> env.record_names, env.frame_size, 0, false
@@ -374,7 +379,7 @@ let rec inst_type env r_ty see_ret = function
         must_be_the_same e2.e_loc Tint e2_ty ;
         let env'' = update env' idn (TGvariable (false, (Miter, Tint))) 0 in
         let see_ret, ibloc_kai = inst_type env'' r_ty see_ret inst in
-        see_ret, KIfor (-env''.frame_size, b, e1_kai, e2_kai, ibloc_kai)
+        see_ret, KIfor (-env''.frame_size+8, b, e1_kai, e2_kai, ibloc_kai)
       with Typing_error (loc, err) -> match err with
         | Undeclared_identifier id ->
             if id = idn.id then t_error loc (No_use_bed id)

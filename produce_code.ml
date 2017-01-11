@@ -10,9 +10,14 @@ open Ast_kai
 let pushn n = subq (imm n) (reg rsp) 
 let popn n = addq (imm n) (reg rsp)
 
+let andthen_counter = let i = ref (-1) in fun() -> incr i; !i
+let orelse_counter = let i = ref (-1) in fun() -> incr i; !i
+let cmprec_counter = let i = ref (-1) in fun() -> incr i; !i
+
 let ifelse_counter = let i = ref (-1) in fun() -> incr i; !i
 let endif_counter = let i = ref (-1) in fun() -> incr i; !i
-let cmprec_counter = let i = ref (-1) in fun() -> incr i; !i
+let for_counter = let i = ref (-1) in fun() -> incr i; !i
+let while_counter = let i = ref (-1) in fun() -> incr i; !i
 
 let labname lab num = lab ^ (string_of_int num)
 
@@ -26,29 +31,30 @@ let constant_val = function
   | _ -> 0
 
 
+let cmp_lis = [ Beq, sete ; Bneq, setne ; Blt, setl ; 
+                Ble, setle ; Bgt, setg ; Bge, setge ]
+
 (* on calcule e1 binop e2, e1 dans %rdi et e2 dans %rsi, le 
-  résultat est mis dans %rdi *)
+  résultat est mis dans %rdi, les cas andthen et orelse ne
+  sont pas traités ici *)
 
 let binopcode = function
 
   | Bplus -> addq (reg rsi) (reg rdi)
   | Bminus -> subq (reg rsi) (reg rdi)
   | Bmul -> imulq (reg rsi) (reg rdi)
+  | Band -> andq (reg rsi) (reg rdi)
+  | Bor -> orq (reg rsi) (reg rdi)
   | Bdiv -> 
       movq (reg rdi) (reg rax) ++ cqto ++ 
       idivq (reg rsi) ++ movq (reg rax) (reg rdi)
   | Brem ->
       movq (reg rdi) (reg rax) ++ cqto ++ 
       idivq (reg rsi) ++ movq (reg rdx) (reg rdi)
-  | Beq ->
+  | cmp_op ->
       cmpq (reg rsi) (reg rdi) ++
-      sete (reg dil) ++
+      (List.assoc cmp_op cmp_lis) (reg dil) ++
       movzbq (reg dil) rdi
-  | Bneq ->
-      cmpq (reg rsi) (reg rdi) ++
-      setne (reg dil) ++
-      movzbq (reg dil) rdi
-  | _ -> failwith "no impl"
 
 
 
@@ -101,7 +107,8 @@ let rec cmprecord rp =
     ofs + 8, leftcode ++ precode ++ code
   in
   let _, rpcode = List.fold_left cmpchamp (0, nop) rp in
-  rpcode ++ label (labname "endcmprec" cmpid) ++ popn 16
+  label (labname "cmprec" cmpid) ++ rpcode ++ 
+  label (labname "endcmprec" cmpid) ++ popn 16
 
 
 (* la fonction pour l'affectation rec1 := rec2, les addresses de rec1
@@ -146,12 +153,39 @@ let rec compile_expr = function
           movq (ind ~ofs:(-x.level*8) rbx) (reg rsi) ++
           movq (ind ~ofs:x.offset rsi) (reg rdi) ++
           if x.by_ref then movq (ind rdi) (reg rdi) else nop end
+  
+  (* L'adresse d'une variable (où le contenu de x est stocké), 
+     sauf pour record c'est tjs l'adresse de record *)
+  | KEaddr ac -> begin match ac with
+      | KArecord (e, _) -> compile_expr e
+      | KAvar x ->
+          movq (ind ~ofs:(-x.level*8) rbx) (reg rsi) ++
+          if x.by_ref then movq (ind ~ofs:x.offset rsi) (reg rdi)
+          else leaq (ind ~ofs:x.offset rsi) rdi
+      | KAacc (e, ofs, typroc) -> compile_expr e ++ match typroc with
+          | TPvar -> addq (imm ofs) (reg rdi)
+          | TPrecord _ -> movq (ind ~ofs rdi) (reg rdi) end
 
-  | KEbinop (o, e1, e2) ->
-      compile_expr e2 ++
-      pushq (reg rdi) ++
-      compile_expr e1 ++
-      popq rsi ++ binopcode o
+  | KEbinop (o, e1, e2) -> begin match o with
+      | Bandthen ->
+          let andthenid = andthen_counter() in
+          compile_expr e1 ++
+          testq (reg rdi) (reg rdi) ++
+          jz (labname "endandthen" andthenid) ++
+          compile_expr e2 ++
+          label (labname "endandthen" andthenid) 
+      | Borelse ->
+          let orelseid = orelse_counter() in
+          compile_expr e1 ++
+          testq (reg rdi) (reg rdi) ++
+          jnz (labname "endorelse" orelseid) ++
+          compile_expr e2 ++
+          label (labname "endorelse" orelseid) 
+      | _ ->
+          compile_expr e2 ++
+          pushq (reg rdi) ++
+          compile_expr e1 ++
+          popq rsi ++ binopcode o end
 
   | KErecbinop (o, e1, e2, rp) ->
       compile_expr e1 ++
@@ -164,6 +198,10 @@ let rec compile_expr = function
         | Bneq -> notq (reg rdi) ++ andq (imm 1) (reg rdi)
         | _ -> assert false end
 
+  | KEunop (o, e) -> compile_expr e ++ begin match o with
+      | Unot -> notq (reg rdi) ++ andq (imm 1) (reg rdi)
+      | Uneg -> negq (reg rdi) end
+
   | KEnew rp ->
       newrecord rp ++ popq rdi
 
@@ -175,8 +213,6 @@ let rec compile_expr = function
       popn (8 * (List.length el)) ++
       movq (reg rax) (reg rdi)
   
-  | _ -> failwith "no implementation error"
-
 
 
 (* compiler une instruction, son code est ajouté après codeins *)
@@ -250,7 +286,38 @@ let rec compile_inst retcode codeins = function
       List.fold_right ifelsecode ci_l elsecode ++
       label (labname "endif" ifid)
 
-  | _ -> failwith "no imple err"
+  | KIfor (ofs, rev, eg, ed, inst) ->
+      let forid = for_counter() in
+      let code =
+        compile_expr (if rev then ed else eg) ++
+        (* movq (reg rdi) (ind ~ofs rbp) *)
+        pushq (reg rdi) ++
+        compile_expr (if rev then eg else ed) ++
+        (* = movq (reg rdi) (ind ~ofs:(ofs-8) rbp) *)
+        pushq (reg rdi) ++
+        jmp (labname "fordown" forid) ++
+        label (labname "forup" forid) ++
+        compile_inst retcode nop inst ++
+        (* = incq (ind ~ofs:8 rsp) *)
+        (if rev then decq else incq) (ind ~ofs rbp) ++
+        label (labname "fordown" forid) ++
+        movq (ind ~ofs rbp) (reg rdi) ++
+        cmpq (ind ~ofs:(ofs-8) rbp) (reg rdi) ++
+        (if rev then jge else jle) (labname "forup" forid) ++ 
+        popn 16
+      in codeins ++ code
+
+  | KIwhile (cond, inst) -> 
+      let whileid = while_counter() in
+      let code = 
+        jmp (labname "whiledown" whileid) ++
+        label (labname "whileup" whileid) ++
+        compile_inst retcode nop inst ++
+        label (labname "whiledown" whileid) ++
+        compile_expr cond ++
+        testq (reg rdi) (reg rdi) ++
+        jnz (labname "whileup" whileid) 
+      in codeins ++ code
 
 
 
