@@ -433,6 +433,14 @@ let rec decl_type (env, funs, assigns) = function
         update env idn (TGvariable (false, (Min_out, ty))) 0, idn.id in
       let ty = find_type_typ env "" typ in 
       let env_res, an_id = List.fold_left (update_step ty) (env, "") idn_l in
+      let define_record rp lis idn =
+        let id_kai = fst (Imap.find idn.id env_res.tbl) in
+        (KIset ((KAvar id_kai, KEnew rp)))::lis
+      in
+      let def_recs = match ty with
+        | Trecord (_, _, (_, rp)) ->
+            List.fold_left (define_record rp) assigns idn_l
+        | _ -> assigns in
       let assigns = begin try match e_o with
         | Some e ->
             let remove_step env idn =
@@ -445,8 +453,8 @@ let rec decl_type (env, funs, assigns) = function
               | Trecord (_, _, (_, rp)) ->
                   KArecord ((KEacc (KAvar anid_kai)), rp)
               | _ -> KAvar anid_kai in
-            (KIset (ac_kai, e_kai))::assigns
-        | _ -> assigns
+            (KIset (ac_kai, e_kai))::def_recs
+        | _ -> def_recs
       with Typing_error (loc, err) -> match err with
         | Undeclared_identifier id ->
             let id_l = List.map (fun idn -> idn.id) idn_l in
@@ -495,12 +503,12 @@ let rec decl_type (env, funs, assigns) = function
         else update env' proc (TGprocedure (proc_num, args)) 0 in
       let env'' = {env'_with_proc with frame_size = 0} in
       let env'', funs', assigns' = decl_type (env'', funs, []) decl in
-      let _, ibloc_kai = inst_type env'' Tnull false inst in
+      let see_return, ibloc_kai = inst_type env'' Tnull false inst in
       let proc_body = match ibloc_kai with
         | KIbloc il_kai -> KIbloc ((List.rev assigns') @ il_kai)
         | _ -> assert false in
       let proc_kai = 
-        { fid = proc_num ; flevel = env.depth ;
+        { fid = proc_num ; flevel = env.depth ; ret = see_return ;
           frame_size = env''.frame_size ; body = proc_body } in
       if env'.depth > !max_level then max_level := env'.depth ; 
       update env proc (TGprocedure (proc_num, args)) 0,
@@ -541,7 +549,7 @@ let rec decl_type (env, funs, assigns) = function
         | KIbloc il_kai -> KIbloc ((List.rev assigns') @ il_kai)
         | _ -> assert false in
       let f_kai = 
-        { fid = f_num ; flevel = env.depth ;
+        { fid = f_num ; flevel = env.depth ; ret = see_return ;
           frame_size = env''.frame_size ; body = f_body } in
       if env'.depth > !max_level then max_level := env'.depth ;
       (* Une petite détaille, on vérifie d'abort ce qui ce passe dans
@@ -561,11 +569,12 @@ let check_type file =
       { tbl = envtbl ; record_names = DImap.empty ; 
         ndef_types = Imap.empty ; depth = 1 ; frame_size = 0 } in
     let env', funs, assigns = decl_type (env, [], []) decl in
-    let _, ibloc_kai = inst_type env' Tnull false inst in
+    let see_return, ibloc_kai = inst_type env' Tnull false inst in
     let body = match ibloc_kai with
       | KIbloc il_kai -> KIbloc ((List.rev assigns) @ il_kai)
       | _ -> assert false in
-    funs, body, env'.frame_size, !max_level 
+    { funs = funs ; ibloc = body ; frame_size = env'.frame_size ;
+      max_lvl = !max_level ; ret = see_return }
   with Typing_error (loc, err) -> 
     let Loc(pos1, pos2) = loc in
     let l = pos1.pos_lnum in

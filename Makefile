@@ -1,4 +1,5 @@
-CMO= parser.cmo lexer.cmo typing_error.cmo typing.cmo ast_printer.cmo adac.cmo
+CMO= parser.cmo lexer.cmo typing_error.cmo typing.cmo \
+	 x86_64.cmo produce_code.cmo ast_printer.cmo adac.cmo
 GENERATED= lexer.ml parser.ml parser.mli
 BIN= adac
 

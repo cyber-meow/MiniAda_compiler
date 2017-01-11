@@ -43,9 +43,10 @@ type inst_kai =
   | KIfor of offset * bool * expr_kai * expr_kai * inst_kai
   | KIwhile of expr_kai * inst_kai
 
-type func = { fid: int; flevel: int; 
-              frame_size: int; body: inst_kai }
+type func = { fid: int ; flevel: int ; 
+              ret: bool ; frame_size: int ; body: inst_kai }
 
 (* on indique la taille nécessaire du tableau d'activation du programme 
    principal et le niveau maximal qui peut être atteint *)
-type file_kai = func list * inst * int * int
+type file_kai = { funs: func list ; ibloc: inst_kai ;
+                  frame_size: int ; max_lvl: int ; ret: bool }

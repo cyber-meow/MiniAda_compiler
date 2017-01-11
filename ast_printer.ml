@@ -84,7 +84,8 @@ let print_func fmt f =
   fprintf fmt "@[{ fid = %d; flevel = %d; frame_size = %d; body = %a }@]"
     f.fid f.flevel f.frame_size print_inst f.body
 
-let print_file fmt (fl, i, fs, mlevel) = 
-  fprintf fmt "@[fs: %a; is: %a; frsize: %d; mlevel: %d@]"
-    (pp_print_list print_func) fl print_inst i fs mlevel
+let print_file fmt file = 
+  fprintf fmt "@[fs: %a; is: %a; frsize: %d; mlevel: %d@]@?"
+    (pp_print_list print_func) file.funs print_inst 
+    file.ibloc file.frame_size file.max_lvl
   

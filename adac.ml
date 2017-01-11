@@ -28,7 +28,7 @@ let localisation pos =
   eprintf "File \"%s\", line %d, characters %d-%d:\n" !ifile l (c-1) c
 
 
-let main() =
+let main () =
   
   (* Command line parsing *)
   Arg.parse options (set_file ifile) usage;
@@ -52,12 +52,17 @@ let main() =
     if !parse_only then exit 0 ;
 
     let ast_kai = Typing.check_type ast in
-    let f' = open_out "out.txt" in
+    
+    if !type_only then exit 0 ;
+    
+    let pfile = Filename.chop_suffix !ifile ".adb" ^ ".ast" in
+    let f' = open_out pfile in
     let fmt = formatter_of_out_channel f' in
     Ast_printer.print_file fmt ast_kai ;
-    close_out f' ;
+    close_out f' ; 
 
-    if !type_only then exit 0
+    let ofile = Filename.chop_suffix !ifile ".adb" ^ ".s" in
+    Produce_code.compile_program ast_kai ofile 
   
   with
 
