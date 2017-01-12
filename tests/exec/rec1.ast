@@ -1,0 +1,7 @@
+fs: { fid = 0; flevel = 1; frame_size = 0; body = KIif ((KEbinop (Beq, 
+                                                         KEacc (KAvar ({ level = 2; offset = 24; by_ref = false })), 
+                                                         KEconst (Cint 0)), KIret), )
+    KIput (KEconst (Cchar a))
+    KIcall (0, KEbinop (Bminus, KEacc (KAvar ({ level = 2; offset = 24; by_ref = false })), 
+               KEconst (Cint 1))) }; is: KIcall (0, KEconst (Cint 42))
+KInewline; frsize: 0; mlevel: 2

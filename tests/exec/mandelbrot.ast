@@ -1,0 +1,102 @@
+fs: { fid = 7; flevel = 1; frame_size = 64; body = KIset (KAvar ({ level = 2; offset = -8; by_ref = false }), 
+                                                   KEcall (4, KEunop (Uneg, 
+                                                              KEconst (Cint 2))))
+    KIset (KAvar ({ level = 2; offset = -16; by_ref = false }), KEcall (4, 
+                                                                KEconst (Cint 1)))
+    KIset (KAvar ({ level = 2; offset = -24; by_ref = false }), KEcall (3, 
+                                                                KEcall (1, 
+                                                                KEacc (
+                                                                KAvar ({ level = 2; offset = -16; by_ref = false }))
+                                                                KEacc (
+                                                                KAvar ({ level = 2; offset = -8; by_ref = false })))
+                                                                KEcall (4, 
+                                                                KEbinop (Bmul, 
+                                                                KEconst (Cint 2), 
+                                                                KEacc (
+                                                                KAvar ({ level = 2; offset = 24; by_ref = false }))))))
+    KIset (KAvar ({ level = 2; offset = -32; by_ref = false }), KEcall (4, 
+                                                                KEunop (Uneg, 
+                                                                KEconst (Cint 1))))
+    KIset (KAvar ({ level = 2; offset = -40; by_ref = false }), KEcall (4, 
+                                                                KEconst (Cint 1)))
+    KIset (KAvar ({ level = 2; offset = -48; by_ref = false }), KEcall (3, 
+                                                                KEcall (1, 
+                                                                KEacc (
+                                                                KAvar ({ level = 2; offset = -40; by_ref = false }))
+                                                                KEacc (
+                                                                KAvar ({ level = 2; offset = -32; by_ref = false })))
+                                                                KEcall (4, 
+                                                                KEacc (
+                                                                KAvar ({ level = 2; offset = 24; by_ref = false })))))
+    KIfor (-72, false, KEconst (Cint 0), KEbinop (Bminus, KEacc (KAvar ({ level = 2; offset = 24; by_ref = false })), 
+                                         KEconst (Cint 1)), KIset (KAvar ({ level = 2; offset = -64; by_ref = false }), 
+                                                            KEcall (0, 
+                                                            KEacc (KAvar ({ level = 2; offset = -32; by_ref = false }))
+                                                            KEcall (2, 
+                                                            KEcall (4, 
+                                                            KEacc (KAvar ({ level = 2; offset = -72; by_ref = false })))
+                                                            KEacc (KAvar ({ level = 2; offset = -48; by_ref = false })))))
+    KIfor (-88, false, KEconst (Cint 0), KEbinop (Bminus, KEbinop (Bmul, 
+                                                          KEconst (Cint 2), 
+                                                          KEacc (KAvar ({ level = 2; offset = 24; by_ref = false }))), 
+                                         KEconst (Cint 1)), KIset (KAvar ({ level = 2; offset = -56; by_ref = false }), 
+                                                            KEcall (0, 
+                                                            KEacc (KAvar ({ level = 2; offset = -8; by_ref = false }))
+                                                            KEcall (2, 
+                                                            KEcall (4, 
+                                                            KEacc (KAvar ({ level = 2; offset = -88; by_ref = false })))
+                                                            KEacc (KAvar ({ level = 2; offset = -24; by_ref = false })))))
+    KIif ((KEcall (6, KEacc (KAvar ({ level = 2; offset = -56; by_ref = false }))
+           KEacc (KAvar ({ level = 2; offset = -64; by_ref = false }))), 
+    KIput (KEconst (Cchar 0))), KIput (KEconst (Cchar 1))))KInewline) }
+{ fid = 6; flevel = 1; frame_size = 0; body = KIret (KEcall (5, KEconst (Cint 0)
+                                                     KEacc (KAvar ({ level = 2; offset = 24; by_ref = false }))
+                                                     KEacc (KAvar ({ level = 2; offset = 32; by_ref = false }))
+                                                     KEcall (4, KEconst (Cint 0))
+                                                     KEcall (4, KEconst (Cint 0))))) }
+{ fid = 5; flevel = 1; frame_size = 16; body = KIif ((KEbinop (Beq, KEacc (
+                                                                    KAvar ({ level = 2; offset = 24; by_ref = false })), 
+                                                      KEconst (Cint 100)), 
+                                               KIret (KEconst (Cbool true)))), )
+KIset (KAvar ({ level = 2; offset = -8; by_ref = false }), KEcall (2, 
+                                                           KEacc (KAvar ({ level = 2; offset = 48; by_ref = false }))
+                                                           KEacc (KAvar ({ level = 2; offset = 48; by_ref = false }))))
+KIset (KAvar ({ level = 2; offset = -16; by_ref = false }), KEcall (2, 
+                                                            KEacc (KAvar ({ level = 2; offset = 56; by_ref = false }))
+                                                            KEacc (KAvar ({ level = 2; offset = 56; by_ref = false }))))
+KIif ((KEbinop (Bgt, KEcall (0, KEacc (KAvar ({ level = 2; offset = -8; by_ref = false }))
+                     KEacc (KAvar ({ level = 2; offset = -16; by_ref = false }))), 
+       KEcall (4, KEconst (Cint 4))), KIret (KEconst (Cbool false)))), )
+KIret (KEcall (5, KEbinop (Bplus, KEacc (KAvar ({ level = 2; offset = 24; by_ref = false })), 
+                  KEconst (Cint 1))
+       KEacc (KAvar ({ level = 2; offset = 32; by_ref = false }))
+       KEacc (KAvar ({ level = 2; offset = 40; by_ref = false }))
+       KEcall (0, KEcall (1, KEacc (KAvar ({ level = 2; offset = -8; by_ref = false }))
+                  KEacc (KAvar ({ level = 2; offset = -16; by_ref = false })))
+       KEacc (KAvar ({ level = 2; offset = 32; by_ref = false })))
+       KEcall (0, KEcall (2, KEcall (4, KEconst (Cint 2))
+                  KEcall (2, KEacc (KAvar ({ level = 2; offset = 48; by_ref = false }))
+                  KEacc (KAvar ({ level = 2; offset = 56; by_ref = false }))))
+       KEacc (KAvar ({ level = 2; offset = 40; by_ref = false })))))) }
+{ fid = 4; flevel = 1; frame_size = 0; body = KIret (KEbinop (Bmul, KEacc (
+                                                                    KAvar ({ level = 2; offset = 24; by_ref = false })), 
+                                                     KEconst (Cint 8192)))) }
+{ fid = 3; flevel = 1; frame_size = 8; body = KIset (KAvar ({ level = 2; offset = -8; by_ref = false }), 
+                                              KEbinop (Bmul, KEacc (KAvar ({ level = 2; offset = 24; by_ref = false })), 
+                                              KEconst (Cint 8192)))
+KIret (KEbinop (Bdiv, KEbinop (Bplus, KEacc (KAvar ({ level = 2; offset = -8; by_ref = false })), 
+                      KEbinop (Bdiv, KEacc (KAvar ({ level = 2; offset = 32; by_ref = false })), 
+                      KEconst (Cint 2))), KEacc (KAvar ({ level = 2; offset = 32; by_ref = false }))))) }
+{ fid = 2; flevel = 1; frame_size = 8; body = KIset (KAvar ({ level = 2; offset = -8; by_ref = false }), 
+                                              KEbinop (Bmul, KEacc (KAvar ({ level = 2; offset = 24; by_ref = false })), 
+                                              KEacc (KAvar ({ level = 2; offset = 32; by_ref = false }))))
+KIret (KEbinop (Bdiv, KEbinop (Bplus, KEacc (KAvar ({ level = 2; offset = -8; by_ref = false })), 
+                      KEbinop (Bdiv, KEconst (Cint 8192), KEconst (Cint 2))), 
+       KEconst (Cint 8192)))) }
+{ fid = 1; flevel = 1; frame_size = 0; body = KIret (KEbinop (Bminus, 
+                                                     KEacc (KAvar ({ level = 2; offset = 24; by_ref = false })), 
+                                                     KEacc (KAvar ({ level = 2; offset = 32; by_ref = false }))))) }
+{ fid = 0; flevel = 1; frame_size = 0; body = KIret (KEbinop (Bplus, 
+                                                     KEacc (KAvar ({ level = 2; offset = 24; by_ref = false })), 
+                                                     KEacc (KAvar ({ level = 2; offset = 32; by_ref = false }))))) }; is: 
+KIcall (7, KEconst (Cint 30)); frsize: 0; mlevel: 2

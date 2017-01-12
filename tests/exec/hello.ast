@@ -1,0 +1,6 @@
+fs: ; is: KIput (KEconst (Cchar H))KIput (KEconst (Cchar e))
+KIput (KEconst (Cchar l))KIput (KEconst (Cchar l))KIput (KEconst (Cchar o))
+KIput (KEconst (Cchar ,))KIput (KEconst (Cchar  ))KIput (KEconst (Cchar w))
+KIput (KEconst (Cchar o))KIput (KEconst (Cchar r))KIput (KEconst (Cchar l))
+KIput (KEconst (Cchar d))KIput (KEconst (Cchar !))
+KInewline; frsize: 0; mlevel: 1
