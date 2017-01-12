@@ -1,4 +1,0 @@
-fs: ; is: KIset (KAvar ({ level = 1; offset = -8; by_ref = false }), 
-          KEconst (Cint 0))
-KIif ((KEbinop (Beq, KEbinop (Bdiv, KEconst (Cint 1), KEacc (KAvar ({ level = 1; offset = -8; by_ref = false }))), 
-       KEconst (Cint 1)), KInewline), ); frsize: 8; mlevel: 1

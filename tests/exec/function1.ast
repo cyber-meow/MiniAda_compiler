@@ -1,4 +1,0 @@
-fs: { fid = 1; flevel = 1; frame_size = 0; body = KIret (KEacc (KAvar ({ level = 2; offset = 24; by_ref = false })))) }
-{ fid = 0; flevel = 1; frame_size = 0; body = KIret (KEconst (Cchar a))) }; is: 
-KIput (KEcall (0, ))KInewlineKIput (KEcall (1, KEconst (Cchar b)))KInewline
-KIput (KEcall (1, KEcall (0, )))KInewline; frsize: 0; mlevel: 2
