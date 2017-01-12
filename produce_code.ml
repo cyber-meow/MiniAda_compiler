@@ -40,19 +40,23 @@ let cmp_lis = [ Beq, sete ; Bneq, setne ; Blt, setl ;
 
 let binopcode = function
 
-  | Bplus -> addq (reg rsi) (reg rdi)
-  | Bminus -> subq (reg rsi) (reg rdi)
-  | Bmul -> imulq (reg rsi) (reg rdi)
+  | Bplus -> addl (reg esi) (reg edi)
+  | Bminus -> subl (reg esi) (reg edi)
+  | Bmul -> imull (reg esi) (reg edi)
   | Band -> andq (reg rsi) (reg rdi)
   | Bor -> orq (reg rsi) (reg rdi)
   | Bdiv -> 
-      movq (reg rdi) (reg rax) ++ cqto ++ 
-      idivq (reg rsi) ++ movq (reg rax) (reg rdi)
+      movl (reg edi) (reg eax) ++ cltd ++ 
+      idivl (reg esi) ++ movl (reg eax) (reg edi)
   | Brem ->
-      movq (reg rdi) (reg rax) ++ cqto ++ 
-      idivq (reg rsi) ++ movq (reg rdx) (reg rdi)
-  | cmp_op ->
+      movl (reg edi) (reg eax) ++ cltd ++ 
+      idivl (reg esi) ++ movl (reg edx) (reg edi)
+  | Beq | Bneq as cmp_op ->
       cmpq (reg rsi) (reg rdi) ++
+      (List.assoc cmp_op cmp_lis) (reg dil) ++
+      movzbq (reg dil) rdi
+  | cmp_op ->
+      cmpl (reg esi) (reg edi) ++
       (List.assoc cmp_op cmp_lis) (reg dil) ++
       movzbq (reg dil) rdi
 
@@ -200,7 +204,7 @@ let rec compile_expr = function
 
   | KEunop (o, e) -> compile_expr e ++ begin match o with
       | Unot -> notq (reg rdi) ++ andq (imm 1) (reg rdi)
-      | Uneg -> negq (reg rdi) end
+      | Uneg -> negl (reg edi) end
 
   | KEnew rp ->
       newrecord rp ++ popq rdi
@@ -299,10 +303,10 @@ let rec compile_inst retcode codeins = function
         label (labname "forup" forid) ++
         compile_inst retcode nop inst ++
         (* = incq (ind ~ofs:8 rsp) *)
-        (if rev then decq else incq) (ind ~ofs rbp) ++
+        (if rev then decl else incl) (ind ~ofs rbp) ++
         label (labname "fordown" forid) ++
-        movq (ind ~ofs rbp) (reg rdi) ++
-        cmpq (ind ~ofs:(ofs-8) rbp) (reg rdi) ++
+        movl (ind ~ofs rbp) (reg edi) ++
+        cmpl (ind ~ofs:(ofs-8) rbp) (reg edi) ++
         (if rev then jge else jle) (labname "forup" forid) ++ 
         popn 16
       in codeins ++ code

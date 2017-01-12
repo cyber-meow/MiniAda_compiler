@@ -184,7 +184,9 @@ let imull a b = ins "imull %a, %a" a () b ()
 let imulq a b = ins "imulq %a, %a" a () b ()
 
 let idivq a = ins "idivq %a" a ()
+let idivl a = ins "idivl %a" a ()
 let cqto = S "\tcqto\n"
+let cltd = S "\tcltd\n"
 
 let notb a = ins "notb %a" a ()
 let notw a = ins "notw %a" a ()

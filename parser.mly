@@ -42,8 +42,8 @@
 %nonassoc CMPG
 %nonassoc CMPI
 %left PLUS MINUS
-%left TIMES DIV REM
 %nonassoc unary_minus
+%left TIMES DIV REM
 %left DOT
 
 /* Point d'entrée de la grammaire */
