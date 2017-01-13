@@ -39,9 +39,9 @@ Enfin, quelques précisions pour la réalisation du typeur
 
 3. le niveau de chaque record est enregistré, pour pouvoir les identifier
 
-4. on indique de plus si un variable est passé par référence dans la fonction
+4. on indique de plus si une variable est passée par référence dans la fonction
 
-5. on garde une trace sur les types déclarés mais no définis (env.ndef_types)
+5. on garde une trace sur les types déclarés mais non définis (env.ndef_types)
 
 6. un fichier typing_error.ml pour gérér les messages d'erreur
 

@@ -1,0 +1,265 @@
+
+** Rapport final du projet de compilation sur le compilateur MiniAda **
+** 13.01.2017 **
+
+PLAN
+
+> Début
+
+> La traduction vers l'assembleur x86-64
+>> Stockage en mémoire(=mémoire+registres) des différents types d'objets
+>> Convention d'appel
+>> Concernant la boucle for
+
+> Le noveau arbre de syntaxe abstrait
+>> Identifiant
+>> Types enregistrement
+>> Fonctions/Procédures
+>> Programme entier
+
+> Fin
+
+
+--------------------------------------------------------------------------
+
+1. Il n'y a pas de grande modification sur le travail de la PartieI 
+   (l'analyse syntaxique et l'analyse du typage).
+
+2. Dans le fichier ast_kai.mli il y a le nouveau type de l'arbre de syntaxe 
+   abstrait. Un tel ast est renvoyé par typing.ml et est ensuite utilisé 
+   pour la production de l'assembleur (produce_code.ml).
+
+3. Ainsi typing.ml est modifié pour pouvoir renvoyer cette information.
+   Par exemple dans la representation abstraite d'un enregistrement on
+   est obligé de stocker un peu plus de choses qu'avant.
+
+--------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------
+
+[[La traduction vers l'assembleur x86-64]]
+======
+
+
+<Stockage en mémoire(=mémoire+registres) des différents types d'objets>
+
+Les cases de mémoire sont toujours alignés sur 8 octets, alors qu'on 
+travaille avec les entier de 32 bits et les enregistrements.
+
+-- Booléen
+
+False et True sont respectivement representé par 0 et 1.
+
+-- Caractère
+
+Les caractères sont representé par leur code ASCII.
+
+-- Entier
+
+Les cases de mémoire sont de taille de 64 bits, mais les opérations effectuées
+sont ceux pour les entiers machines 32 bits signés (du type l). 
+
+On remarque que dans x86-64 on réalise alors automatiquement une extension 
+signée de l'entier sur les 32 premiers bits de la case, un test d'égalité peut
+donc être fait sur 64 bits (ce qui ne sera pas le cas si on travaille avec 
+les entiers de 16 bits par exemple).
+
+-- Enregistrement et Accès
+
+Un enregistrements est un bloc qui est alloués sur le tas contenant
+les valeurs de ses champs, seul l'adresse de l'enregistrement (renvoyé
+par malloc) est stocké dans la variable qui le represente. 
+
+De même dans un accès on stocke l'adresse d'un enregistrement, donc on est 
+incapable de les distinguer de point de vu de representation en mémoire.
+
+Un accès null est representé par 0.
+
+
+<Convention d'appel>
+
+Les arguments sonts passés sur la pile mais dans l'ordre inverse (on
+empile d'abort le dernier argument puis l'avant dernier etc).
+
+On construit une table globale dans laquelle on conserve un pointeur vers 
+le dernier tableau d'activation de chaque niveau (on alloue cette table
+au début du programme et son adresse est stocké dans %rbx). 
+
+Ainsi, en entrant chque fonction, on fait:
+
+1. Empiler le rbp de l'appelant
+2. Empiler le rbp du dernier procédure activé du même niveau
+3. rbp <- rsp
+4. Placer le rbp actuel dans la position correspondante de la table globale
+5. Allouer le tableau d'activation pour les variables locales
+
+Et en sortant, on fait l'inverse.
+
+Schema:
+
+                          ---------------------
+                          |     Argument n    |
+                          ---------------------
+                          |    Argument n-1   |
+                          ---------------------
+                          |         .         |
+                          |         .         |
+                          |         .         |
+                          ---------------------
+                          |     Argument 1    |
+                          ---------------------
+                          | Adresse de retour |
+                          ---------------------
+                          |  %rbp l'appelant  |
+                          ---------------------
+                 %rbp ->  |      %rbp Pd      |
+                          ---------------------
+                          | Varaible locale 1 |
+                          ---------------------
+                          |         .         |
+                          |         .         |
+                          |         .         |
+                          ---------------------
+                          | Variable locale m |
+                          ---------------------
+
+(n arguments, m variables locales, 
+ Pd est le procédure du même niveau dernier activé)
+
+Précision pour les arguments in out: dans la plupart des cas, on empile 
+l'adresse de variable, sauf que pour un enregistrement, on empile toujours
+l'adresse de l'enregistrement (en fait, si une variable represente
+un enregistrement, on ne peut pas modifier ce qui est stocker dans 
+son adresse -> c'est fixé dès le début).
+
+
+<Concernant la boucle for>
+
+La variable ainsi que la borne sup (ou la borne inf si on met reverse) de
+boucle sont ajoutés dans la pile. L'offset entre le rbp actuel et la
+position de variable peut être calculé lors de la compilation afin qu'on
+puisse avoir accès à la valuer de la variable dans la boucle.
+
+On ajoute donc sur le sommet de la pile (cas sans reverse)
+
+                          ---------------------
+                          |  Variable boucle  |
+                          ---------------------
+                          |  Borne sup boucle |
+                          ---------------------
+                          
+--------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------
+
+[[Le nouveau arbre de syntaxe abstrait]]
+======
+
+
+<Identifiant>
+
+Les noms des identifiants sont remplacés leur niveau et offset pour indiquer
+l'emplacement de la variable en mémoire.
+
+Il y un champ by_ref qui est utilisé pour dire que si dans l'emplacement
+de cette variable est stocké sa valeur ou son adresse effectif (pour un
+paramètre passé dans la fonction en mode in out).
+Ainsi pour une variable representant un enregistrement by_ref est toujours 
+faux. (c.f. convention d'appel)
+
+À ce même égard, KEaddr calcule l'adresse effectif d'une variable 
+sauf que pour un enregistrement ce qui est calculé est toujours la valeur
+(i.e. l'adresse de l'enregistrement).
+
+
+<Types enregistrement>
+
+Lors de l'affectation et du test d'égalité, le comportement pour un
+enregistrement est différent des autres types d'objets (i.e. booléen,
+caractère, entier et accèss). Il faut donc pouvoir le reconnaître dans
+notre arbre de syntaxe abstrait.
+
+On définit ainsi ty_prod dans ast_kai.mli qui distingue les types 
+enregistrements des autres types possibles. Et pour un enregistrement, 
+on garde en mémoire les types (sous forme ty_prod) de ses champs. 
+On se sert alors de cette information lors de la compilation pour pouvoir 
+copier/comparer champ par champ.
+
+P.S. Pour la comparaison entre deux enregistrements, on ne compare pas
+forcément tous les champs si au bout d'un moment on se rend en compte que
+certains champs correpondants entre deux enregistrements sont déjà deifférents.
+
+
+<Fonctions/Procédures>
+
+On ne distingue plus entre les fonctions et les procédures dans la phase
+de production de l'assembleur, elles sont toutes traitées de la même manière.
+Dans la suite, le mot fonction peut aussi representer une procédure.
+
+D'abort, les noms de fonction ne sont plus gardés car deux fonctions 
+distinctes peuvent posséder éventuellement le même nom.
+C'est sûrement possible d'employer le concept de l'espace de noms ici, 
+mais pour la commodité, j'attribue juste un numéro à chaque fonction de 
+sorte que deux fonctions distinctes n'aient jamais le même numéro. 
+
+Les fonction sont donc des étiquettes dans le code assembleur ayant pour
+nom "fun<fid>". 
+
+Les autres composants d'une fonction sont son niveau de déclaration, la 
+taille de son tableau d'activation, son corps d'instructions et un
+booléen pour indiquer s'il y a besoin d'ajouter un bout de code pour faire
+return à la fin de la fonction (si ret = true, pas de besoin de le faire).
+
+Dans le corps de la fonction, avant les vraies instructions qui sont
+codées dans le programme, on met les affectaions qui sont issues du bloc
+de déclaration de la fonction.
+
+Il y a deux types:
+
+1. Affectation explicite: <a1>, ..., <an> := <e>;
+2. Affectation implicite: chaque fois un enregistrement est déclaré, il
+   faut allouer un bloc sur le tas pour cet enregistrement (ça correspond
+   à ce qu'on fait en utilisant l'instruction new <record type>)
+
+
+<Programme entier>
+
+Le programme entier se compose de la liste des fonctions déclarées, le
+corps d'instructions, la taille du tableau d'activation du programme
+principal, le niveau maximal qui peut être atteint par une variable et
+un booléen ret comme dans le cas d'une fonction.
+
+En fait, le programme est tout simplement une autre fonction, on a juste
+fait le choix de representer ainsi.
+
+--------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------
+
+1. On attribue aussi des numéros aux structures de contrôle comme if esle,
+   for, while ...
+
+2. Le fichier ocaml ast_printer.ml sert juste à debugger, je n'ai pas passé
+   beaucoup de temps à le coder, donc les résultats affichés (qui sont
+   dans les fichiers *.ast) sont très moches et peu lisibles.
+
+3. En utilisant des entiers machines 32 bits signés, je n'ai pas arrivé à 
+   imprimer correctement N = -2^31 = -2147483648 car dans la fonction 
+   print_int on est obligé de calculer d'abort -N mais pour la machine
+   -N est égal à N. On affiche alors "-,8". Pour régler ce problème, j'ai
+   inversé l'ordre de priorité entre le moins unitaire et la division
+   (ainsi la multiplication et rem) dans le parser. Il me semble qu'on
+   a le droit de la faire ici car -(a/b) = (-a)/b en Ada.
+
+4. Je crois avoir parlé d'à peu près tous les points essentiels dans ce 
+   rapport, sinon j'ai bien mis les commentaires dans les codes chaque fois 
+   il y a quelques choses à préciser.
+
+5. J'ai seulement fait les tests sur les codes MiniAda fournis (et ça marche),
+   c'est donc fortement probable qu'il y a des bugs de ce compilateur.
+
+--------------------------------------------------------------------------
+
